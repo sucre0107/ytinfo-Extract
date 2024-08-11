@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Comment Fetcher</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <meta name="google-signin-client_id" content="650241351969-eqll2jmrvhs0p1eqqmen5kh06gs7f66r.apps.googleusercontent.com">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label, input {
+            display: block;
+            width: 100%;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .comment {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .comment p {
+            margin: 5px 0;
+        }
+
+        .reply {
+            margin-left: 20px;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .copy-button-container {
+            text-align: right;
+            margin-top: 20px;
+        }
+
+        .copy-button {
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-button.copied {
+            background-color: #4CAF50;
+        }
+
+        .clear {
+            clear: both;
+        }
+
+        .loading {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="g_id_onload"
+             data-client_id="650241351969-eqll2jmrvhs0p1eqqmen5kh06gs7f66r.apps.googleusercontent.com"
+             data-callback="handleCredentialResponse">
+        </div>
+        <div class="g_id_signin" data-type="standard"></div>
+        <a href="#" onclick="signOut();">Sign out</a>
+        <h1>YouTube Comments Fetcher</h1>
+        <form id="commentForm" class="form-group">
+            <label for="videoId">Enter Video ID:</label>
+            <input type="text" id="videoId" name="videoId" required>
+            <div class="button-container">
+                <button type="submit">Fetch Comments</button>
+                <button type="button" onclick="fetchDescription()">Fetch Description</button>
+                <button type="button" onclick="fetchCaptions()">Fetch Captions</button>
+            </div>
+        </form>
+        <div class="copy-button-container">
+            <button class="copy-button" id="copyCommentsButton" onclick="copyAllComments()" disabled>Copy All Comments</button>
+            <button class="copy-button" id="copyDescriptionButton" onclick="copyVideoDescription()" disabled>Copy Video Description</button>
+            <button class="copy-button" id="copyCaptionsButton" onclick="copyVideoCaptions()" disabled>Copy Video Captions</button>
+        </div>
+        <div id="comments"></div>
+    </div>
+
+    <script>
+        // 处理用户登录后的响应
+        function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token: " + response.credential);
+            // 你可以将ID令牌发送到后端进行身份验证
+            // 示例：
+            // fetch('/your-backend', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ id_token: response.credential })
+            // }).then(response => response.json()).then(data => console.log(data));
+        }
+
+        // 初始化并配置Google登录按钮
+        window.onload = function() {
+            google.accounts.id.initialize({
+                client_id: '650241351969-eqll2jmrvhs0p1eqqmen5kh06gs7f66r.apps.googleusercontent.com',
+                callback: handleCredentialResponse
+            });
+            google.accounts.id.renderButton(
+                document.querySelector('.g_id_signin'),
+                { theme: 'outline', size: 'large' }  // 自定义按钮样式
+            );
+            google.accounts.id.prompt(); // 自动提示用户登录
+        }
+
+        // 用户登出
+        function signOut() {
+            google.accounts.id.disableAutoSelect();
+            console.log('User signed out.');
+        }
+
+    // 获取视频评论
+    function fetchComments(videoId, fetchButton) {
+        fetch('/get_comments?video_id=' + videoId)
+            .then(response => response.json())
+            .then(data => {
+                var commentsDiv = document.getElementById('comments');
+                commentsDiv.innerHTML = '';
+                var allCommentsContent = '';
+                data.forEach((comment, index) => {
+                    var commentElement = document.createElement('div');
+                    commentElement.classList.add('comment');
+
+                    var commentNumber = (index + 1) + ' comment: ';
+                    var commentHeader = document.createElement('strong');
+                    commentHeader.textContent = commentNumber;
+
+                    var commentContent = `${comment.username} (${new Date(comment.published_at).toLocaleString()}): ${comment.comment}`;
+                    var commentText = document.createElement('p');
+                    commentText.textContent = commentContent;
+
+                    commentElement.appendChild(commentHeader);
+                    commentElement.appendChild(commentText);
+
+                    allCommentsContent += commentNumber + commentContent + '\n';
+
+                    if (comment.replies.length > 0) {
+                        comment.replies.forEach((reply, replyIndex) => {
+                            var replyElement = document.createElement('div');
+                            replyElement.classList.add('reply');
+
+                            var replyNumber = (index + 1) + '.' + (replyIndex + 1) + ' reply: ';
+                            var replyHeader = document.createElement('strong');
+                            replyHeader.textContent = replyNumber;
+
+                            var replyContent = `${reply.username} (${new Date(reply.published_at).toLocaleString()}): ${reply.comment}`;
+                            var replyText = document.createElement('p');
+                            replyText.textContent = replyContent;
+
+                            replyElement.appendChild(replyHeader);
+                            replyElement.appendChild(replyText);
+                            commentElement.appendChild(replyElement);
+
+                            allCommentsContent += replyNumber + replyContent + '\n';
+                        });
+                    }
+
+                    commentsDiv.appendChild(commentElement);
+                    allCommentsContent += '\n';
+                });
+
+                // 启用 Copy 按钮并设置内容
+                enableCopyButton('copyCommentsButton', allCommentsContent);
+
+                // 生成并下载 TXT 文件
+                downloadCommentsAsTxt(allCommentsContent, "Video_Comments");
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                var commentsDiv = document.getElementById('comments');
+                commentsDiv.innerHTML = '<p>There was an error fetching comments. Please try again later.</p>';
+            })
+            .finally(() => {
+                fetchButton.classList.remove('loading');
+                fetchButton.disabled = false;
+                fetchButton.textContent = 'Fetch Comments';
+            });
+    }
+
+    // 获取视频描述
+    function fetchDescription() {
+        var fetchButton = document.querySelector('button[onclick="fetchDescription()"]');
+        fetchButton.classList.add('loading');
+        fetchButton.disabled = true;
+        fetchButton.textContent = 'Fetching...';
+
+        var videoId = document.getElementById('videoId').value;
+        fetch('/get_description?video_id=' + videoId)
+            .then(response => response.json())
+            .then(data => {
+                // 显示描述内容并启用Copy按钮
+                var descriptionContent = data.description;
+                var commentsDiv = document.getElementById('comments');
+                commentsDiv.innerHTML += '<div class="comment"><strong>Description:</strong><p>' + descriptionContent + '</p></div>';
+                enableCopyButton('copyDescriptionButton', descriptionContent);
+            })
+            .catch(error => console.error('Error:', error))
+            .finally(() => {
+                fetchButton.classList.remove('loading');
+                fetchButton.disabled = false;
+                fetchButton.textContent = 'Fetch Description';
+            });
+    }
+
+    // 获取视频字幕
+    function fetchCaptions() {
+        var fetchButton = document.querySelector('button[onclick="fetchCaptions()"]');
+        fetchButton.classList.add('loading');
+        fetchButton.disabled = true;
+        fetchButton.textContent = 'Fetching...';
+
+        var videoId = document.getElementById('videoId').value;
+        fetch('/get_captions?video_id=' + videoId)
+            .then(response => response.json())
+            .then(data => {
+                // 显示字幕内容并启用Copy按钮
+                var captionsContent = data.captions;
+                var commentsDiv = document.getElementById('comments');
+                commentsDiv.innerHTML += '<div class="comment"><strong>Captions:</strong><p>' + captionsContent + '</p></div>';
+                enableCopyButton('copyCaptionsButton', captionsContent);
+            })
+            .catch(error => console.error('Error:', error))
+            .finally(() => {
+                fetchButton.classList.remove('loading');
+                fetchButton.disabled = false;
+                fetchButton.textContent = 'Fetch Captions';
+            });
+    }
+
+    // 复制所有评论
+    function copyAllComments() {
+        copyContent('copyCommentsButton');
+    }
+
+    // 复制视频描述
+    function copyVideoDescription() {
+        copyContent('copyDescriptionButton');
+    }
+
+    // 复制视频字幕
+    function copyVideoCaptions() {
+        copyContent('copyCaptionsButton');
+    }
+
+    // 复制内容到剪贴板
+    function copyContent(buttonId) {
+        var button = document.getElementById(buttonId);
+        var content = button.getAttribute('data-content');
+        var dummy = document.createElement('textarea');
+        document.body.appendChild(dummy);
+        dummy.value = unescapeHtml(content);
+        dummy.select();
+        document.execCommand('copy');
+        document.body.removeChild(dummy);
+        button.textContent = 'Copied ☑️';
+        button.classList.add('copied');
+        button.disabled = true;
+    }
+
+    // 重置复制按钮
+    function resetCopyButtons() {
+        var buttons = document.querySelectorAll('.copy-button');
+        buttons.forEach(button => {
+            button.disabled = true;
+            button.textContent = 'Copy';
+            button.classList.remove('copied');
+        });
+    }
+
+    // 启用复制按钮
+    function enableCopyButton(buttonId, content) {
+        var button = document.getElementById(buttonId);
+        button.disabled = false;
+        button.setAttribute('data-content', escapeHtml(content));
+    }
+
+    // 转义HTML
+    function escapeHtml(text) {
+        return text.replace(/[&<>"']/g, function(match) {
+            const escapeMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return escapeMap[match];
+        });
+    }
+
+    // 反转义HTML
+    function unescapeHtml(text) {
+        return text.replace(/&amp;|&lt;|&gt;|&quot;|&#039;/g, function(match) {
+            const unescapeMap = {
+                '&amp;': '&',
+                '&lt;': '<',
+                '&gt;': '>',
+                '&quot;': '"',
+                '&#039;': "'"
+            };
+            return unescapeMap[match];
+        });
+    }
+
+    // 下载评论为TXT文件
+    function downloadCommentsAsTxt(content, title) {
+        var blob = new Blob([content], { type: 'text/plain' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = title + '.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+</body>
+</html>
