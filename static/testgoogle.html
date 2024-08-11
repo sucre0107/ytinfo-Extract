@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Google Sign-In Test</title>
+	<script src="https://apis.google.com/js/platform.js" async defer></script>
+	<meta name="google-signin-client_id"
+		  content="650241351969-eqll2jmrvhs0p1eqqmen5kh06gs7f66r.apps.googleusercontent.com">
+	<script>
+		function handleCredentialResponse(response) {
+			console.log("Encoded JWT ID token: " + response.credential);
+			alert("Google Sign-In Success: " + response.credential);
+		}
+		
+		window.onload = function () {
+			google.accounts.id.initialize({
+				client_id: '650241351969-eqll2jmrvhs0p1eqqmen5kh06gs7f66r.apps.googleusercontent.com',
+				callback: handleCredentialResponse
+			});
+			google.accounts.id.renderButton(
+					document.getElementById('buttonDiv'),
+					{theme: 'outline', size: 'large'}  // 自定义按钮样式
+			);
+			google.accounts.id.prompt(); // 自动提示用户登录
+		}
+	</script>
+</head>
+<body>
+1111
+<div id="buttonDiv"></div>
+</body>
+</html>
