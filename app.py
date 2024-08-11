@@ -7,6 +7,7 @@ from google_auth_httplib2 import AuthorizedHttp
 import httplib2
 from googleapiclient.errors import HttpError
 
+
 # 设置日志记录
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -124,6 +125,24 @@ def serve_frontend():
     logging.info('Serving frontend')
     return send_from_directory(app.static_folder, 'index.html')
 
+from google.auth.transport import requests
+from google.oauth2 import id_token
+@app.route('/verify_token', methods=['POST'])
+def verify_token():
+    token = request.json.get('id_token')
+    try:
+        # 验证ID令牌
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), '650241351969-eqll2jmrvhs0p1eqqmen5kh06gs7f66r.apps.googleusercontent.com')
+
+        # 如果令牌是合法的，返回用户的Google账户信息
+        if 'sub' in idinfo:
+            return jsonify({"success": True, "user": idinfo['email']})
+        else:
+            return jsonify({"success": False}), 401
+    except ValueError as e:
+        # 处理无效的令牌
+        return jsonify({"success": False, "error": str(e)}), 400
+
 @app.route('/get_comments', methods=['GET'])
 def get_comments():
     video_id = request.args.get('video_id')
@@ -182,6 +201,7 @@ def get_video_captions_route():
     except Exception as e:
         logging.error(f'Error fetching captions for video_id: {video_id}, Error: {e}')
         return jsonify({"error": "Failed to fetch captions"}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port='5555')
